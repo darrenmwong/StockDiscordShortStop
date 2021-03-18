@@ -1,10 +1,17 @@
 const fetch = require('node-fetch');
 const config = require('../config.json');
+const Discord = require('discord.js');
 
 let stockHash = new Map();
 
 // Need last ticker priced so if we quote it doesnt set values. Maybe a hashmap or we can store in a db.
 // TODO: If args has watch, we need to check if the symbol is returning true so we can add in a hash map and watch.
+// TODO: watch is not encapsulated and needs more logic. maybe break watcher component into another file.
+// TODO: Create an embed so its prettier.
+// TODO: add watching to embeded
+// TODO: After hours tracking
+// TODO: Watch list for After hours or kill.
+// inside a command, event listener, etc.
 
 module.exports = {
     name: 'quote',
@@ -29,8 +36,22 @@ module.exports = {
                 return;
             }
 
-            let percentSpread = (100 / json.pc * json.c) - 100;
-            percentSpread = percentSpread.toFixed(2);
+            const movement = ((100 / json.pc * json.c) - 100).toFixed(2);
+            const movementColor = movement > 0 ? '#2ECC71' : '#E74C3C';
+            const embedImage = movement > 0 ? 'https://cryptoslate.com/wp-content/uploads/2021/01/doge-rocket.jpg' : 'https://i.kym-cdn.com/entries/icons/original/000/018/012/this_is_fine.jpeg';
+            const embedStats = new Discord.MessageEmbed()
+                .setColor(movementColor)
+                .setTitle(`Stats for $${ticker}`)
+                .setThumbnail(embedImage)
+                .addFields(
+                    { name: 'Current', value: json.c, inline: true },
+                    { name: 'Movement', value: `${movement}%`, inline: true},
+                    { name: 'Opening', value: json.o, inline: true},
+                    { name: 'High', value: json.h, inline: true },
+                    { name: 'Low', value: json.l, inline: true },
+                )
+                .setImage(embedImage)
+                .setTimestamp()
 
             if(stockHash.has(ticker)) {
                 if((stockHash.get(ticker) - json.c) >= 10 ) {
@@ -41,7 +62,7 @@ module.exports = {
                 }
                 stockHash.set(ticker, json.c);
             } else {
-                message.channel.send('Current Price: ' + json.c + '. Open Price: ' + json.o + '. Prev Closing Price:' + json.pc);
+                message.channel.send(embedStats);
                 stockHash.set(ticker, json.c);
             }
 
@@ -53,6 +74,7 @@ module.exports = {
            message.reply('Watching ' + ticker);
            let watchQuote = setInterval(() => { getStockPrices(ticker) }, 120000);
         }
+
     }
 
 }
