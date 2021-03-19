@@ -1,6 +1,7 @@
 const fetch = require('node-fetch');
 const config = require('../config.json');
 const Discord = require('discord.js');
+const { watchQuote, watchHash } = require('./helpers/quoteWatch')
 
 let stockHash = new Map();
 
@@ -19,6 +20,20 @@ module.exports = {
     execute(message, args) {
         let ticker = args[0].toUpperCase();
         let url = config.payload_url + ticker + "&token=" + config.finnhub_token; 
+        let watch = args[1] === "watch" ? true : false;
+        let kill = args[1] === 'kill' ? true : false;
+
+        if(watch && watchHash.get(ticker)) {
+            message.reply('Symbol is already being watched');
+            return;
+        } 
+
+        if(kill && watchHash.get(ticker)) {
+            message.channel.send(`Removed $${ticker} watcher`);
+            clearInterval(watchHash.get(ticker).quoteInterval);
+            watchHash.delete(ticker);
+            return;
+        }
 
         async function getStockPrices() {
             const response = await fetch(url);
@@ -35,7 +50,6 @@ module.exports = {
                 message.reply('Symbol does not exist');
                 return;
             }
-
             const movement = ((100 / json.pc * json.c) - 100).toFixed(2);
             const movementColor = movement > 0 ? '#2ECC71' : '#E74C3C';
             const embedImage = movement > 0 ? 'https://cryptoslate.com/wp-content/uploads/2021/01/doge-rocket.jpg' : 'https://i.kym-cdn.com/entries/icons/original/000/018/012/this_is_fine.jpeg';
@@ -66,14 +80,12 @@ module.exports = {
                 stockHash.set(ticker, json.c);
             }
 
+            if(watch) watchQuote(message, args, ticker);
+
         });
 
-        let watch = false;
-        if(args[1] === "watch") {
-           watch = true; 
-           message.reply('Watching ' + ticker);
-           let watchQuote = setInterval(() => { getStockPrices(ticker) }, 120000);
-        }
+
+
 
     }
 
