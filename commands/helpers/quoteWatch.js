@@ -1,17 +1,39 @@
-const watchHash = new Map();
+// TODO: Make embeded for watcher interval.
+// TODO: Set own stopper limit on notification with price adjustment.
+
+const fetch = require('node-fetch');
+
+const watchHash = {};
+
+async function getStockPrices(url) {
+    const response = await fetch(url);
+    if(!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+}
 
 class QuoteInterval {
-    constructor(args) {
-        this.quoteInterval = setInterval( () => { console.log(args) }, 10000);
-        this.args = args ? args : null;
+    constructor(url, ticker, message) {
+        this.quoteInterval = setInterval( () => {
+             getStockPrices(url).then(response => {
+                let json = response;
+                if(watchHash[ticker].currentPrice - json.c >= 10 ) {
+                    message.reply('LOSS. ' + stockHash.get(ticker) + '. Difference: $' + (json.c - watchHash[ticker].currentPrice));
+                }
+                if(watchHash[ticker].currentPrice - json.c <= -10 ) {
+                    message.reply('GAIN. ' + 'Difference: +$' + (json.c - watchHash[ticker].currentPrice));
+                }
+            })
+        }, 10000);
     }
 };
 
-const watchQuote = (message, args, ticker) => {
+
+const watchQuote = (message, ticker, json, url) => {
    message.reply('Watching ' + ticker);
-   // find and see if theres a ticker inside the hash
-   let watcher = new QuoteInterval(ticker);
-   watchHash.set(ticker, watcher);
+   let watcher = new QuoteInterval(url, ticker, message);
+   watchHash[ticker] = { watch: watcher, currentPrice: json.c };
 }
 
 

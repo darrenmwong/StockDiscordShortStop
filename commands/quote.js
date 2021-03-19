@@ -3,10 +3,6 @@ const config = require('../config.json');
 const Discord = require('discord.js');
 const { watchQuote, watchHash } = require('./helpers/quoteWatch')
 
-let stockHash = new Map();
-
-// Need last ticker priced so if we quote it doesnt set values. Maybe a hashmap or we can store in a db.
-// TODO: If args has watch, we need to check if the symbol is returning true so we can add in a hash map and watch.
 // TODO: watch is not encapsulated and needs more logic. maybe break watcher component into another file.
 // TODO: Create an embed so its prettier.
 // TODO: add watching to embeded
@@ -23,15 +19,15 @@ module.exports = {
         let watch = args[1] === "watch" ? true : false;
         let kill = args[1] === 'kill' ? true : false;
 
-        if(watch && watchHash.get(ticker)) {
+        if(watch && watchHash[ticker]) {
             message.reply('Symbol is already being watched');
             return;
         } 
 
-        if(kill && watchHash.get(ticker)) {
+        if(kill && watchHash[ticker]) {
             message.channel.send(`Removed $${ticker} watcher`);
-            clearInterval(watchHash.get(ticker).quoteInterval);
-            watchHash.delete(ticker);
+            clearInterval(watchHash[ticker].watch.quoteInterval);
+            delete watchHash[ticker];
             return;
         }
 
@@ -50,6 +46,7 @@ module.exports = {
                 message.reply('Symbol does not exist');
                 return;
             }
+
             const movement = ((100 / json.pc * json.c) - 100).toFixed(2);
             const movementColor = movement > 0 ? '#2ECC71' : '#E74C3C';
             const embedImage = movement > 0 ? 'https://cryptoslate.com/wp-content/uploads/2021/01/doge-rocket.jpg' : 'https://i.kym-cdn.com/entries/icons/original/000/018/012/this_is_fine.jpeg';
@@ -67,20 +64,9 @@ module.exports = {
                 .setImage(embedImage)
                 .setTimestamp()
 
-            if(stockHash.has(ticker)) {
-                if((stockHash.get(ticker) - json.c) >= 10 ) {
-                    message.reply('LOSS. ' + stockHash.get(ticker) + '. Difference: $' + (json.c - stockHash.get(ticker)));
-                }
-                if((stockHash.get(ticker) - json.c) <= -10 ) {
-                    message.reply('GAIN. ' + 'Difference: +$' + (json.c - stockHash.get(ticker)));
-                }
-                stockHash.set(ticker, json.c);
-            } else {
-                message.channel.send(embedStats);
-                stockHash.set(ticker, json.c);
-            }
+            message.channel.send(embedStats);
 
-            if(watch) watchQuote(message, args, ticker);
+            if(watch) watchQuote(message, ticker, json, url);
 
         });
 
