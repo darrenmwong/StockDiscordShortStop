@@ -20,15 +20,17 @@ module.exports = {
         let kill = args[1] === 'kill' ? true : false;
 
         if(watch && watchHash[ticker]) {
-            message.reply('Symbol is already being watched');
-            return;
+           return message.reply('Symbol is already being watched');
         } 
 
         if(kill && watchHash[ticker]) {
-            message.channel.send(`Removed $${ticker} watcher`);
             clearInterval(watchHash[ticker].watch.quoteInterval);
             delete watchHash[ticker];
-            return;
+            return message.channel.send(`Removed $${ticker} watcher`);
+        }
+
+        if(kill && !watchHash[ticker]) {
+            return message.channel.send(`$${ticker} is not being watched. Nothing to kill`);
         }
 
         async function getStockPrices() {
@@ -43,8 +45,7 @@ module.exports = {
             let json = response;
 
             if(json.o === 0) {
-                message.reply('Symbol does not exist');
-                return;
+               return message.reply('Symbol does not exist');
             }
 
             const movement = ((100 / json.pc * json.c) - 100).toFixed(2);
@@ -66,7 +67,7 @@ module.exports = {
 
             message.channel.send(embedStats);
 
-            if(watch) watchQuote(message, ticker, json, url);
+            if(watch) watchQuote(message, ticker, json, url, args);
 
         });
 

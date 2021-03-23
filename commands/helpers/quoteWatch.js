@@ -1,5 +1,4 @@
 // TODO: Make embeded for watcher interval.
-// TODO: Set own stopper limit on notification with price adjustment.
 
 const fetch = require('node-fetch');
 
@@ -14,25 +13,33 @@ async function getStockPrices(url) {
 }
 
 class QuoteInterval {
-    constructor(url, ticker, message) {
+    constructor(url, ticker, message, spread) {
         this.quoteInterval = setInterval( () => {
              getStockPrices(url).then(response => {
                 let json = response;
-                if(watchHash[ticker].currentPrice - json.c >= 10 ) {
-                    message.reply('LOSS. ' + stockHash.get(ticker) + '. Difference: $' + (json.c - watchHash[ticker].currentPrice));
+                let priceChange = (json.c - watchHash[ticker].currentPrice).toFixed(2);
+                if(watchHash[ticker].currentPrice - json.c >= spread ) {
+                    message.reply(`$${ticker} Down $${priceChange}. Current price is $${json.c}`);
                 }
-                if(watchHash[ticker].currentPrice - json.c <= -10 ) {
-                    message.reply('GAIN. ' + 'Difference: +$' + (json.c - watchHash[ticker].currentPrice));
+                if(watchHash[ticker].currentPrice - json.c <= -spread ) {
+                    message.reply(`$${ticker} Up $${priceChange}. Current price is $${json.c}`);
                 }
+
+                // Set New Ticker Price
+                watchHash[ticker].currentPrice = json.c;
+                console.log(ticker + ' ' + watchHash[ticker].currentPrice)
+
             })
-        }, 10000);
+        }, 180000);
     }
 };
 
 
-const watchQuote = (message, ticker, json, url) => {
+const watchQuote = (message, ticker, json, url, args) => {
    message.reply('Watching ' + ticker);
-   let watcher = new QuoteInterval(url, ticker, message);
+   // Spread is custom but defaults to 1% of the open price
+   let spread = args[2] ? args[2] : (json.o / 100);
+   let watcher = new QuoteInterval(url, ticker, message, spread);
    watchHash[ticker] = { watch: watcher, currentPrice: json.c };
 }
 
